@@ -368,13 +368,6 @@ flights_db %>%
   mutate(speed = distance / (air_time / 60)) %>%
   show_query()
 
- 
-flights_test <- flights_db %>%
-  select(distance, air_time) %>%  
-  mutate(speed = distance / (air_time / 60)) 
-
-print(flights_test)
-
 ```
 
 
