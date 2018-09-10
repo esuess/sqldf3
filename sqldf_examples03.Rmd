@@ -1,0 +1,391 @@
+---
+title: "sqldf examples"
+output: html_notebook
+---
+
+Today we will take a look at:
+
+#. the iris data
+#. the diamonds data in the *ggplot2* library
+#. the gapminder data in the *gapminder* library
+#. the nycflights13 data in the *nyclights13* library
+
+A good website to look at to learn more about sql is [w3school.com ](https://www.w3schools.com/sql/default.asp)
+
+And a good book is [Select * SQL](https://selectstarsql.com/).
+
+Finally, check out [data.world](https://data.world/)
+
+This is an updated version of my SQL Examples R Notebook using the *tidyverse* and *sqldf*.
+
+```{r}
+library(ggplot2)
+library(gapminder)
+library(nycflights13)
+
+library(tidyverse)
+library(sqldf)
+
+library(skimr)
+
+library(kableExtra)
+```
+
+# Using the *tidyverse*
+
+
+```{r}
+iris %>% head()
+```
+
+
+```{r}
+head(diamonds)
+```
+
+```{r}
+gapminder %>% head()
+```
+
+
+```{r}
+airlines %>% head() %>% kable() %>% kable_styling()
+flights %>% head()
+planes %>% head()
+weather %>% head()
+```
+
+1. Look at the **iris** data.
+
+```{r, out.width = "400px"}
+knitr::include_graphics("E:/University/classes/2016-2017/Spring2017/Stat6620/sqldf/thUFAY9IC0.jpg")
+```
+
+```{r}
+iris %>% glimpse()
+
+iris %>% skim()
+
+iris.means <- iris %>% group_by(Species) %>%
+  summarise( n=n(), Petal.Length.mean=mean(Petal.Length), Petal.Width.mean=mean(Petal.Width), 
+             Sepal.Length.mean=mean(Sepal.Length), Sepal.Width.mean=mean(Sepal.Width))
+
+print(iris.means)
+
+# Old R code
+#species.means <- with(iris, aggregate(iris[-5], by=list(Species), FUN=mean, na.rm=TRUE))
+#print(species.means)
+
+```
+
+2. Start by looking at the **diamond** data.
+
+Here is a very nice blog post about using **sqldf**.
+
+https://www.r-bloggers.com/manipulating-data-frames-using-sqldf-a-brief-overview/
+
+
+```{r, out.width = "400px"}
+knitr::include_graphics("E:/University/classes/2016-2017/Spring2017/Stat6620/sqldf/diamond.png")
+```
+
+```{r}
+data("diamonds")
+
+diamonds %>% head()
+
+diamonds %>% tail()
+
+```
+
+```{r}
+diamonds %>% glimpse()
+
+diamonds %>% skim()
+```
+
+
+```{r}
+diamonds %>% 
+  select(carat, cut, price) %>%
+  group_by(cut) %>%
+  summarise(n=n(), carat.mean=mean(carat), price.mean=mean(price))
+
+#diamonds.cut <- with(diamonds, aggregate(cbind(carat,price) ~ cut, FUN=mean))
+
+#print(diamonds.cut)
+```
+
+```{r}
+
+diamonds %>% 
+  select(carat, price, color) %>%
+  group_by(color) %>%
+  summarise( n=n(), carat_mean=mean(carat), price_mean=mean(price)) 
+
+
+#diamonds.color <- with(diamonds, aggregate(cbind(carat,price) ~ color, FUN=mean))
+
+#print(diamonds.color)
+```
+
+```{r}
+diamonds %>% select(carat, price, clarity) %>%
+  group_by(clarity) %>%
+  summarise(n=n(), carat.mean=mean(carat), price.mean=mean(price))
+
+#diamonds.clarity <- with(diamonds, aggregate(cbind(carat,price) ~ clarity, FUN=mean))
+
+#print(diamonds.clarity)
+```
+
+Look only at good diamonds by color.
+
+```{r}
+diamonds %>% filter(cut == "Good")
+
+diamonds %>% filter(cut == "Good") %>%
+  group_by(color) %>%
+  summarise(n=n(), carat.mean=mean(carat), price.mean=mean(price))
+
+#diamonds.good <- subset(diamonds, cut=='Good')
+
+#print(diamonds.good)
+
+#diamonds.good.means <- with(diamonds.good, aggregate(cbind(carat,price) ~ color, FUN=mean))
+
+#print(diamonds.good.means)
+
+```
+
+# Using SQL from the *sqldf package.
+
+Select the good diamonds.
+
+
+```{r}
+library(sqldf)
+
+query01 <- "SELECT * FROM diamonds WHERE cut='Good'" 
+
+query01 %>%  sqldf()
+
+#goodDiamonds <- sqldf("SELECT * FROM diamonds WHERE cut='Good'")
+
+#print(goodDiamonds)
+```
+
+Look at the carat variable for the good diamonds that are also color grade E.
+
+```{r}
+query02 <- "SELECT carat FROM diamonds WHERE cut='Good' AND color='E' "
+
+query02 %>% sqldf()
+
+#goodDiamonds <- sqldf("SELECT carat FROM diamonds WHERE cut='Good' AND color='E' ")
+
+#print(goodDiamonds)
+```
+
+
+```{r}
+query03 <- "SELECT * FROM diamonds WHERE cut='Good' AND color='E' "
+
+query03 %>% sqldf()
+
+#goodDiamonds <- sqldf("SELECT * FROM diamonds WHERE cut='Good' AND color='E' ")
+
+#print(goodDiamonds)
+```
+
+3. Look at the **gapmider** data.
+
+```{r}
+gapminder %>% head()
+```
+
+```{r}
+gapminder %>% ggplot(aes(x=gdpPercap, y=lifeExp)) +
+  geom_point() +
+  scale_x_log10() +
+  geom_point(aes(color=continent))
+
+
+#ggplot(gapminder, aes(x = log10(gdpPercap), y = lifeExp)) +
+#  geom_point() + scale_x_log10() + geom_point(aes(color = continent))
+```
+
+Examine the older population in Asia in 2007.
+
+```{r}
+gapminder %>% head()
+
+query04 <- "SELECT * FROM gapminder 
+                  WHERE continent='Asia' AND year = '2007' AND lifeExp > 75 
+                  ORDER BY lifeExp DESC"
+
+Asia <- query04 %>% sqldf()
+
+Asia %>% ggplot(aes(x=gdpPercap, y= lifeExp)) +
+  geom_point(shape=1) +
+  geom_smooth(method=lm)
+
+#Americas <- sqldf("SELECT * FROM gapminder 
+#                  WHERE continent='Asia' AND year = '2007' AND lifeExp > 75 
+#                  ORDER BY lifeExp DESC")
+
+#print(Americas)
+
+#ggplot(Americas, aes(x=gdpPercap, y=lifeExp)) +
+#    geom_point(shape=1) +    # Use hollow circles
+#    geom_smooth(method=lm)   # Add linear regression line 
+                              #  (by default includes 95% confidence region)
+```
+
+
+4. Look at the **nycflights13** data.  Here the data file contains many files and can be used to merge substes of the data.
+
+```{r}
+flights %>% head()
+airlines %>% head()
+planes %>% head()
+weather %>% head()
+
+```
+
+Some merges:
+
+a. Add the airlines data to the flights data table by carrier.
+
+```{r}
+query05 <- "SELECT * FROM flights LEFT JOIN airlines ON flights.carrier = airlines.carrier"
+
+flights.plane <- query05 %>% sqldf()
+
+flights.plane
+
+dim(flights)
+dim(airlines)
+
+dim(flights.plane)
+```
+
+ Add the planes data to the flights data table by tail number.
+
+```{r}
+query06 <- "SELECT * FROM flights LEFT JOIN planes ON flights.tailnum = planes.tailnum"
+
+flights.plane <- query06 %>% sqldf()
+
+flights.plane
+
+dim(flights)
+dim(planes)
+dim(flights.plane)
+
+
+#flights.plane <- sqldf("SELECT flights.year,flights.flight,flights.tailnum,flights.carrier,flights.distance, 
+#                       flights.air_time,planes.type,planes.model,planes.engines
+#                       FROM flights LEFT JOIN planes ON flights.tailnum = planes.tailnum")
+
+#print(flights.plane)
+
+#dim(flights.plane)
+
+```
+
+```{r}
+query07 <- "SELECT * FROM flights LEFT JOIN planes ON flights.tailnum = planes.tailnum ORDER BY flights.distance DESC"
+
+flights.plane <- query07 %>% sqldf()
+
+flights.plane
+
+dim(flights)
+dim(planes)
+dim(flights.plane)
+
+#flights_plane <- sqldf("SELECT flights.year,flights.flight,flights.tailnum,flights.carrier,flights.distance, 
+#                       flights.air_time,planes.type,planes.model,planes.engines
+#                       FROM flights LEFT JOIN planes ON flights.tailnum = planes.tailnum 
+#                       ORDER BY flights.distance DESC")
+
+#print(flights_plane)
+```
+
+
+b. Add the name of the carrier to the planes data table.
+
+Already did this above, here is the query again.
+
+```{r}
+query05 <- "SELECT * FROM flights LEFT JOIN airlines ON flights.carrier = airlines.carrier"
+
+flights.plane <- query05 %>% sqldf()
+
+flights.plane
+
+dim(flights)
+dim(airlines)
+
+dim(flights.plane)
+```
+
+
+
+Save the file to an sqlite dataset. Updated code here.  This function has been moved to the *dbplyr* package.
+
+```{r}
+library(dbplyr)
+
+nycflights13_sqlite(path = "C:/Users/Eric A. Suess/Documents")
+```
+
+
+```{r}
+db <- src_sqlite(path = "C:/Users/Eric A. Suess/Documents/nycflights13.sqlite")
+
+flights_db <- tbl(db, "flights")
+
+flights_db %>% filter(carrier == "UA") %>%
+  select(dep_delay) %>%
+  summary(n=n())
+```
+
+```{r}
+library(dbplyr)
+
+con <- DBI::dbConnect(RSQLite::SQLite(), "C:/Users/Eric A. Suess/Documents/nycflights13.sqlite")
+
+flights_db <- tbl(con, "flights")
+
+flights_db %>%
+  select(contains("delay")) %>%
+  show_query()
+
+flights_db %>%
+  select(distance, air_time) %>%  
+  mutate(speed = distance / (air_time / 60)) %>%
+  show_query()
+
+ 
+flights_test <- flights_db %>%
+  select(distance, air_time) %>%  
+  mutate(speed = distance / (air_time / 60)) 
+
+print(flights_test)
+
+```
+
+
+Another topic.
+
+Interesting document about loading and saving data files in different data formats.
+
+https://cran.rstudio.com/web/packages/saves/vignettes/saves.pdf
+
+```{r}
+sessionInfo()
+```
+
+

@@ -1,0 +1,264 @@
+---
+title: "sqldf examples"
+output: html_notebook
+---
+
+Today we will take a look at:
+
+#. the iris data
+#. the diamonds data in the *ggplot2* library
+#. the gapminder data in the *gapminder* library
+#. the nycflights13 data in the *nyclights13* library
+
+A good website to look at to learn more about sql is [w3school.com ](https://www.w3schools.com/sql/default.asp)
+
+And a good book is [Select * SQL](https://selectstarsql.com/).
+
+Finally, check out [data.world](https://data.world/)
+
+This is an updated version of my SQL Examples R Notebook using the *tidyverse* and *sqldf*.
+
+```{r}
+library(ggplot2)
+library(gapminder)
+library(nycflights13)
+
+library(tidyverse)
+library(sqldf)
+
+library(skimr)
+
+library(kableExtra)
+```
+
+
+
+```{r}
+iris %>% head()
+```
+
+
+```{r}
+head(diamonds)
+```
+
+```{r}
+gapminder %>% head()
+```
+
+
+```{r}
+airlines %>% head() %>% kable() %>% kable_styling()
+flights %>% head()
+planes %>% head()
+weather %>% head()
+```
+
+1. Look at the iris data.
+
+```{r, out.width = "400px"}
+knitr::include_graphics("E:/University/classes/2016-2017/Spring2017/Stat6620/sqldf/thUFAY9IC0.jpg")
+```
+
+```{r}
+iris %>% glimpse()
+
+iris %>% skim()
+
+species.means <- with(iris, aggregate(iris[-5], by=list(Species), FUN=mean, na.rm=TRUE))
+
+print(species.means)
+
+```
+
+2. Start by looking at the **diamond** data.
+
+Here is a very nice blog post about using **sqldf**.
+
+https://www.r-bloggers.com/manipulating-data-frames-using-sqldf-a-brief-overview/
+
+
+```{r, out.width = "400px"}
+knitr::include_graphics("E:/University/classes/2016-2017/Spring2017/Stat6620/sqldf/diamond.png")
+```
+
+```{r}
+data("diamonds")
+
+head(diamonds)
+
+tail(diamonds)
+
+```
+
+```{r}
+print(diamonds)
+
+str(diamonds)
+```
+
+
+```{r}
+diamonds.cut <- with(diamonds, aggregate(cbind(carat,price) ~ cut, FUN=mean))
+
+print(diamonds.cut)
+```
+
+```{r}
+diamonds.color <- with(diamonds, aggregate(cbind(carat,price) ~ color, FUN=mean))
+
+print(diamonds.color)
+```
+
+```{r}
+diamonds.clarity <- with(diamonds, aggregate(cbind(carat,price) ~ clarity, FUN=mean))
+
+print(diamonds.clarity)
+```
+
+```{r}
+diamonds.good <- subset(diamonds, cut=='Good')
+
+print(diamonds.good)
+
+diamonds.good.means <- with(diamonds.good, aggregate(cbind(carat,price) ~ color, FUN=mean))
+
+print(diamonds.good.means)
+
+```
+
+
+```{r}
+library(sqldf)
+goodDiamonds <- sqldf("select * from diamonds where cut='Good'")
+
+print(goodDiamonds)
+```
+
+```{r}
+library(sqldf)
+
+goodDiamonds <- sqldf("select * from diamonds where cut='Good' ")
+
+print(goodDiamonds)
+```
+
+```{r}
+
+goodDiamonds <- sqldf("select carat from diamonds where cut='Good' and color='E' ")
+
+print(goodDiamonds)
+```
+
+
+```{r}
+goodDiamonds <- sqldf("select * from diamonds where cut='Good' and color='E' ")
+
+print(goodDiamonds)
+```
+
+3. Look at the gapmider data.
+
+```{r}
+
+library(tibble)
+library(ggplot2)
+
+head(gapminder)
+```
+
+```{r}
+ggplot(gapminder, aes(x = log10(gdpPercap), y = lifeExp)) +
+  geom_point() + scale_x_log10() + geom_point(aes(color = continent))
+```
+
+```{r}
+print(gapminder)
+
+Americas <- sqldf("SELECT * FROM gapminder 
+                  WHERE continent='Asia' AND year = '2007' AND lifeExp > 75 
+                  ORDER BY lifeExp DESC")
+
+print(Americas)
+
+ggplot(Americas, aes(x=gdpPercap, y=lifeExp)) +
+    geom_point(shape=1) +    # Use hollow circles
+    geom_smooth(method=lm)   # Add linear regression line 
+                             #  (by default includes 95% confidence region)
+
+```
+
+
+4. Look at the nycflights13 data.  Here the data file contains many files and can be used to merge substes of the data.
+
+```{r}
+head(airlines)
+head(flights)
+head(planes)
+head(weather)
+```
+
+Some merges:
+
+1. Add the planes data to the flights data table by tail number.
+
+
+```{r}
+flights.plane <- sqldf("SELECT flights.year,flights.flight,flights.tailnum,flights.carrier,flights.distance, 
+                       flights.air_time,planes.type,planes.model,planes.engines
+                       FROM flights LEFT JOIN planes ON flights.tailnum = planes.tailnum")
+
+print(flights.plane)
+```
+
+```{r}
+flights_plane <- sqldf("SELECT flights.year,flights.flight,flights.tailnum,flights.carrier,flights.distance, 
+                       flights.air_time,planes.type,planes.model,planes.engines
+                       FROM flights LEFT JOIN planes ON flights.tailnum = planes.tailnum 
+                       ORDER BY flights.distance DESC")
+
+print(flights_plane)
+```
+
+
+2. Add the name of the carrier to the planes data table.
+
+3. Add the information about the planes to the flights data table.  Join the planes data to the flights data on tailnum.
+
+
+```{r}
+flights_plane_name <- sqldf("SELECT flights_plane.carrier, airlines.name,
+                       flights_plane.year,flights_plane.flight,flights_plane.tailnum,
+                       flights_plane.distance, flights_plane.air_time,flights_plane.type,
+                       flights_plane.model,flights_plane.engines
+                       FROM flights_plane LEFT JOIN airlines ON flights_plane.carrier = airlines.carrier")
+
+print(flights_plane_name)
+```
+
+
+
+
+
+
+
+Save the file to an sqlite dataset.
+
+```{r}
+library(dplyr)
+
+nycflights13_sqlite(path = "C:/Users/Eric A. Suess/Documents")
+```
+
+
+Another topic.
+
+Interesting document about loading and saving data files in different data formats.
+
+https://cran.rstudio.com/web/packages/saves/vignettes/saves.pdf
+
+```{r}
+sessionInfo()
+```
+
+
